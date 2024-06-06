@@ -1,6 +1,7 @@
 ///<reference path="../stable/lib.deno.d.ts" />
 
 import { Socket } from "net";
+import { once } from "events";
 
 import { FsFile } from "../stable/classes/FsFile.js";
 
@@ -39,6 +40,21 @@ export class Conn extends FsFile implements Deno.Conn {
 
   unref(): void {
     this.#socket.unref();
+  }
+
+  async read(p: Uint8Array): Promise<number | null> {
+    try {
+      return await super.read(p);
+    } catch (error) {
+      if (
+        !(error instanceof Error && "code" in error &&
+          error.code == "EAGAIN")
+      ) {
+        throw error;
+      }
+    }
+    await once(this.#socket, "readable");
+    return await super.read(p);
   }
 }
 
